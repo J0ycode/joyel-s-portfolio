@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://joyeljoejosh.vercel.app/sitemap.xml
+
+# Disallow any admin or private paths (none currently but good practice)
+Disallow: /.git/
+Disallow: /node_modules/
