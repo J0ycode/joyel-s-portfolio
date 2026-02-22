@@ -66,16 +66,12 @@
 }
 
 html {
-    /* Fluid base font: 14px on 320px screen → 16px on 1280px+ screen */
     font-size: clamp(14px, calc(0.8rem + 0.25vw), 17px);
-    scroll-behavior: smooth;
     overflow-x: hidden;
-    /* Prevent content reflow when scrollbar appears */
     scrollbar-gutter: stable;
     -webkit-overflow-scrolling: touch;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    /* Make html itself cover full viewport */
     min-height: 100%;
     width: 100%;
 }
@@ -181,6 +177,19 @@ em {
 }
 
 /* ── CURSOR ── */
+
+/* Hidden by default — only visible after first real mousemove inside the page */
+.cursor-dot,
+.cursor-ring {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.cursor-ready .cursor-dot,
+body.cursor-ready .cursor-ring {
+    opacity: 1;
+}
+
 .cursor-dot {
     width: 6px;
     height: 6px;
@@ -194,7 +203,7 @@ em {
     pointer-events: none;
     transform: translate(-50%, -50%) translateZ(0);
     /* Hardware acceleration */
-    transition: transform 0.2s, width 0.25s, height 0.25s, background 0.25s;
+    transition: opacity 0.3s ease, transform 0.2s, width 0.25s, height 0.25s, background 0.25s;
     will-change: transform;
 }
 
@@ -211,7 +220,7 @@ em {
     pointer-events: none;
     transform: translate(-50%, -50%) translateZ(0);
     /* Hardware acceleration */
-    transition: width 0.3s var(--ease-smooth), height 0.3s var(--ease-smooth),
+    transition: opacity 0.3s ease, width 0.3s var(--ease-smooth), height 0.3s var(--ease-smooth),
         border-color 0.3s, background 0.3s, transform 0.3s;
     will-change: transform;
 }
@@ -233,7 +242,7 @@ body.cursor-hover .cursor-dot {
 
     .cursor-dot,
     .cursor-ring {
-        display: none;
+        display: none !important;
     }
 }
 
@@ -1229,46 +1238,7 @@ body.cursor-hover .cursor-dot {
     box-shadow: 0 8px 24px rgba(99, 102, 241, 0.2);
 }
 
-/* ── SCROLL HINT ── */
-.scroll-hint {
-    position: absolute;
-    bottom: 2rem;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.65rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    cursor: none;
-}
 
-.scroll-hint-line {
-    width: 1px;
-    height: 40px;
-    background: linear-gradient(to bottom, var(--gold), transparent);
-    animation: scrollLine 2s ease-in-out infinite;
-}
-
-@keyframes scrollLine {
-    0% {
-        height: 0;
-        opacity: 0;
-    }
-
-    50% {
-        height: 40px;
-        opacity: 1;
-    }
-
-    100% {
-        height: 0;
-        opacity: 0;
-    }
-}
 
 /* ══════════════════════════════════════
    ABOUT SECTION
@@ -1497,10 +1467,10 @@ body.cursor-hover .cursor-dot {
         box-shadow 0.4s;
 }
 
-.project-card.featured {
-    border-color: var(--border-gold);
+.project-card.featured:hover {
     box-shadow: var(--shadow-gold);
-    background: linear-gradient(145deg, rgba(212, 175, 55, 0.04), var(--surface));
+    background: linear-gradient(145deg, rgba(212, 175, 55, 0.06), var(--surface));
+    border-color: var(--border-gold);
 }
 
 .project-card:hover {

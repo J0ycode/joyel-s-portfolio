@@ -24,6 +24,9 @@
     gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
     gsap.defaults({ ease: 'power3.out', duration: 0.9 });
 
+    // No smooth-scroll library — native OS scroll for zero-lag response
+    const lenis = null;
+
     // ══════════════════════════════════
     // PRELOADER
     // ══════════════════════════════════
@@ -98,26 +101,29 @@
         const ring = $('#cursorRing');
         if (!dot || !ring) return;
 
-        let mx = window.innerWidth / 2;
-        let my = window.innerHeight / 2;
-        let rx = mx, ry = my;
+        // Start hidden — reveal only after first real mouse movement
+        let hasMoved = false;
+        let mx = -200, my = -200;
+        let rx = -200, ry = -200;
 
         document.addEventListener('mousemove', e => {
             mx = e.clientX;
             my = e.clientY;
+            if (!hasMoved) {
+                hasMoved = true;
+                // Snap ring to position immediately on first move
+                rx = mx; ry = my;
+                document.body.classList.add('cursor-ready');
+            }
         }, { passive: true });
 
         const renderCursor = () => {
-            // Instantly update dot
             dot.style.left = mx + 'px';
             dot.style.top = my + 'px';
-
-            // Lerp the outer ring
             rx += (mx - rx) * 0.12;
             ry += (my - ry) * 0.12;
             ring.style.left = rx + 'px';
             ring.style.top = ry + 'px';
-
             requestAnimationFrame(renderCursor);
         };
         renderCursor();
@@ -128,7 +134,7 @@
             el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
         });
 
-        // Hide cursor only when mouse leaves the browser window entirely
+        // Shrink when mouse leaves the browser window, restore on re-enter
         document.addEventListener('mouseleave', () => {
             dot.style.transform = 'translate(-50%, -50%) scale(0) translateZ(0)';
             ring.style.transform = 'translate(-50%, -50%) scale(0) translateZ(0)';
@@ -222,16 +228,17 @@
             });
         }
 
-        // Smooth anchor scroll
+        // Smooth anchor scroll — use Lenis when available, GSAP fallback
         $$('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', e => {
                 const target = document.querySelector(anchor.getAttribute('href'));
                 if (!target) return;
                 e.preventDefault();
-                gsap.to(window, {
-                    duration: 1.1, scrollTo: { y: target, offsetY: 64 },
-                    ease: 'power3.inOut'
-                });
+                if (lenis) {
+                    lenis.scrollTo(target, { offset: -64, duration: 1.2 });
+                } else {
+                    gsap.to(window, { duration: 1.1, scrollTo: { y: target, offsetY: 64 }, ease: 'power3.inOut' });
+                }
             });
         });
     };
