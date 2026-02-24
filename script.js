@@ -28,6 +28,32 @@
     const lenis = null;
 
     // ══════════════════════════════════
+    // THEME SWITCHER
+    // ══════════════════════════════════
+    const initTheme = () => {
+        const html = document.documentElement;
+        const btn = $('#themeToggle');
+        if (!btn) return;
+
+        // Apply saved theme immediately (before paint)
+        const saved = localStorage.getItem('portfolio-theme');
+        if (saved) html.setAttribute('data-theme', saved);
+
+        btn.addEventListener('click', () => {
+            const current = html.getAttribute('data-theme');
+            const next = current === 'gold' ? '' : 'gold';
+            if (next) {
+                html.setAttribute('data-theme', next);
+                localStorage.setItem('portfolio-theme', next);
+            } else {
+                html.removeAttribute('data-theme');
+                localStorage.removeItem('portfolio-theme');
+            }
+        });
+    };
+    initTheme();
+
+    // ══════════════════════════════════
     // PRELOADER
     // ══════════════════════════════════
     const initPreloader = () => {
