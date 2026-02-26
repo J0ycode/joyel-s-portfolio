@@ -285,6 +285,8 @@ html {
     text-size-adjust: 100%;
     min-height: 100%;
     width: 100%;
+    /* Prevent rubber-band bounce that causes scroll jitter */
+    overscroll-behavior: none;
 }
 
 body {
@@ -471,31 +473,82 @@ body.cursor-hover .cursor-dot {
 }
 
 /* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ PRELOADER ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
+/* ════════════════════════════════
+   PRELOADER  — cinematic curtain
+   ════════════════════════════════ */
 #preloader {
     position: fixed;
     inset: 0;
-    background: #D6DCE0;
+    background: var(--bg);
     z-index: 999998;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    will-change: clip-path, transform;
+    overflow: hidden;
+}
+
+/* Decorative edge lines */
+#preloader::before,
+#preloader::after {
+    content: '';
+    position: absolute;
+    background: var(--gold);
+    opacity: 0.25;
+}
+
+#preloader::before {
+    width: 1px;
+    height: 0;
+    top: 0;
+    left: clamp(2rem, 6vw, 5rem);
+    animation: plLine 1.2s var(--ease-expo) 0.2s forwards;
+}
+
+#preloader::after {
+    width: 0;
+    height: 1px;
+    bottom: clamp(2rem, 6vw, 4rem);
+    right: 0;
+    animation: plLineH 1s var(--ease-expo) 0.6s forwards;
+}
+
+@keyframes plLine {
+    to {
+        height: 55vh;
+    }
+}
+
+@keyframes plLineH {
+    to {
+        width: 45vw;
+    }
 }
 
 .preloader-inner {
     text-align: center;
+    position: relative;
 }
 
 .preloader-logo {
     font-family: var(--font-main);
-    font-size: clamp(3rem, 8vw, 4rem);
-    /* Fluid font size */
+    font-size: clamp(3rem, 8vw, 4.5rem);
     font-weight: 900;
     color: transparent;
     -webkit-text-stroke: 2px var(--gold);
-    letter-spacing: 6px;
-    margin-bottom: clamp(1.5rem, 4vw, 2rem);
-    /* Fluid margin */
+    letter-spacing: 8px;
+    margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: plFadeUp 0.8s var(--ease-expo) 0.1s forwards;
+}
+
+@keyframes plFadeUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .pl-dot {
@@ -503,15 +556,22 @@ body.cursor-hover .cursor-dot {
     -webkit-text-stroke: 0;
 }
 
+/* Progress bar container */
 .preloader-bar {
-    width: clamp(150px, 40vw, 200px);
-    /* Fluid width */
-    height: 2px;
-    background: rgba(0, 78, 100, 0.08);
+    width: clamp(160px, 38vw, 220px);
+    height: 1px;
+    background: rgba(0, 78, 100, 0.1);
     border-radius: 9999px;
     overflow: hidden;
-    margin: 0 auto clamp(0.75rem, 2vw, 1rem);
-    /* Fluid margin */
+    margin: 0 auto clamp(1rem, 2.5vw, 1.5rem);
+    opacity: 0;
+    animation: plFadeIn 0.5s ease 0.5s forwards;
+}
+
+@keyframes plFadeIn {
+    to {
+        opacity: 1;
+    }
 }
 
 .preloader-fill {
@@ -519,15 +579,40 @@ body.cursor-hover .cursor-dot {
     width: 0%;
     background: linear-gradient(90deg, var(--gold), var(--gold-light));
     border-radius: 9999px;
-    transition: width 1.5s var(--ease-expo);
+    transition: width 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Counter */
+.preloader-counter {
+    font-family: var(--font-mono, 'Space Grotesk', monospace);
+    font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+    opacity: 0;
+    animation: plFadeIn 0.5s ease 0.7s forwards;
 }
 
 .preloader-label {
-    font-size: clamp(0.65rem, 1.5vw, 0.75rem);
-    /* Fluid font size */
-    letter-spacing: 0.3em;
+    font-size: clamp(0.58rem, 1.2vw, 0.68rem);
+    letter-spacing: 0.35em;
     text-transform: uppercase;
     color: var(--text-muted);
+    margin-top: 0.4rem;
+    opacity: 0;
+    animation: plFadeIn 0.5s ease 0.8s forwards;
+}
+
+/* ════ HERO: hide elements initially (GSAP reveals them) ════
+   Prevents a flash of un-animated content before GSAP kicks in. */
+.gsap-hero-eyebrow,
+.gsap-hero-line,
+.gsap-hero-role,
+.gsap-hero-desc,
+.gsap-hero-actions,
+.gsap-hero-stats,
+.gsap-hero-visual {
+    opacity: 0;
 }
 
 /* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ NAV ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
@@ -538,8 +623,13 @@ body.cursor-hover .cursor-dot {
     /* Full viewport width always */
     width: 100%;
     z-index: 1000;
-    transform: translateY(-100%);
+    transform: translateY(-100%) translateZ(0);
+    /* translateZ(0) promotes to own GPU layer */
     transition: transform 0.5s var(--ease-expo), background 0.4s;
+    will-change: transform;
+    /* tell browser to pre-allocate compositor layer */
+    backface-visibility: hidden;
+    /* prevent sub-pixel flicker in Chromium */
 }
 
 #nav.visible {
@@ -547,8 +637,10 @@ body.cursor-hover .cursor-dot {
 }
 
 #nav.scrolled {
-    background: rgba(255, 255, 255, 0.95);
-    -webkit- border-bottom: 1px solid var(--border);
+    background: transparent;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 78, 100, 0.08);
 }
 
 .nav-inner {
@@ -578,40 +670,41 @@ body.cursor-hover .cursor-dot {
 .nav-links {
     display: flex;
     list-style: none;
-    gap: clamp(1rem, 2.5vw, 2.5rem);
+    gap: clamp(0.25rem, 1vw, 0.5rem);
+    /* Tighter gap inside the pill */
     flex-wrap: nowrap;
+
+    /* Liquid glass pill around all menu options */
+    background: rgba(0, 78, 100, 0.05);
+    border: 1px solid rgba(0, 78, 100, 0.12);
+    box-shadow:
+        0 4px 16px rgba(0, 78, 100, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        inset 0 -1px 0 rgba(0, 78, 100, 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-full);
 }
 
 .nav-link {
     font-size: clamp(0.78rem, 1.1vw, 0.9rem);
     font-weight: 500;
     color: var(--text-muted);
-    letter-spacing: 0.03em;
-    transition: color 0.3s;
+    letter-spacing: 0.05em;
     position: relative;
     cursor: none;
     white-space: nowrap;
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-full);
+    transition: color 0.3s, background 0.3s;
 }
 
-.nav-link::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 1px;
-    background: var(--gold);
-    transition: width 0.4s var(--ease-smooth);
-}
-
+/* Subtle highlight for individual items inside the pill */
 .nav-link:hover,
 .nav-link.active {
-    color: var(--text);
-}
-
-.nav-link:hover::after,
-.nav-link.active::after {
-    width: 100%;
+    color: var(--gold);
+    background: rgba(0, 78, 100, 0.08);
 }
 
 .nav-burger {
@@ -741,6 +834,30 @@ body.cursor-hover .cursor-dot {
     padding-left: max(var(--gutter), var(--safe-left));
     padding-right: max(var(--gutter), var(--safe-right));
     box-sizing: border-box;
+    /* Isolate paint areas per section — reduces repaint scope during scroll */
+    contain: layout style;
+}
+
+/* GPU-promote elements that GSAP will animate during scroll */
+.gsap-tag,
+.gsap-headline,
+.gsap-about-text,
+.info-card,
+.gsap-skill,
+.gsap-project,
+.gsap-contact-left,
+.gsap-contact-right,
+.form-field,
+.gsap-hero-eyebrow,
+.gsap-hero-line,
+.gsap-hero-role,
+.gsap-hero-desc,
+.gsap-hero-actions,
+.gsap-hero-stats,
+.gsap-hero-visual {
+    will-change: opacity, transform;
+    /* After animation completes, remove will-change via JS to free GPU memory.
+       See initScrollAnimations onComplete callbacks. */
 }
 
 .section-tag {
@@ -961,18 +1078,104 @@ body.cursor-hover .cursor-dot {
 }
 
 .hero-headline {
-    /* Truly fluid: 2.8rem on 320px ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ 7rem on 1600px */
-    font-size: clamp(2.8rem, 7vw + 0.5rem, 7rem);
+    font-size: clamp(2.2rem, 5.5vw + 0.5rem, 5.5rem);
     font-weight: 900;
     line-height: 1.0;
     letter-spacing: -0.04em;
     color: var(--text);
-    margin-bottom: clamp(1rem, 2vh, 1.5rem);
+    margin-bottom: clamp(0.75rem, 1.5vh, 1.2rem);
+    white-space: nowrap;
+}
+
+.gsap-hero-line {
+    display: inline-block;
+}
+
+/* Each letter pulses through dark → gold → dark and floats up-down */
+.name-letter {
+    display: inline-block;
+    animation:
+        letterGlow 2.8s ease-in-out infinite,
+        letterWave 2.4s ease-in-out infinite;
+    will-change: color, transform;
+}
+
+@keyframes letterGlow {
+
+    0%,
+    100% {
+        color: var(--text);
+    }
+
+    50% {
+        color: var(--gold);
+        text-shadow: 0 0 18px rgba(0, 78, 100, 0.5);
+    }
+}
+
+@keyframes letterWave {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+/* Space between words shouldn’t animate */
+.name-letter.space {
+    animation: none;
+    display: inline;
+    /* normal space width */
 }
 
 .line-wrap {
     display: block;
     overflow: hidden;
+}
+
+/* ── Hero Tagline — standout version ── */
+.hero-tagline {
+    display: table;
+    /* shrink-wraps to content width */
+    margin: 0 auto clamp(1.2rem, 2.5vh, 1.8rem) 8%;
+    /* slightly left of center */
+    opacity: 0;
+    /* GSAP reveals this */
+    padding: 0.45rem 1.1rem;
+    background: linear-gradient(135deg, rgba(0, 78, 100, 0.06), rgba(var(--gold-rgb, 180, 140, 60), 0.08));
+    border: 1px solid rgba(0, 78, 100, 0.12);
+    border-radius: var(--radius-full);
+    box-shadow: 0 0 18px rgba(0, 78, 100, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.tagline-text {
+    font-family: var(--font-main);
+    font-size: clamp(0.82rem, 1.6vw, 1rem);
+    font-weight: 700;
+    font-style: italic;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    /* Gradient text */
+    background: linear-gradient(90deg, var(--text) 0%, var(--gold) 55%, var(--text-muted) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+    text-shadow: none;
+}
+
+.tagline-accent {
+    font-size: 1.2em;
+    margin: 0 0.35em;
+    background: none;
+    -webkit-text-fill-color: var(--gold);
+    color: var(--gold);
+    opacity: 1;
+    font-style: normal;
 }
 
 .hero-role {
@@ -1197,8 +1400,7 @@ body.cursor-hover .cursor-dot {
     border: 1px solid rgba(0, 78, 100, 0.45);
     box-shadow: 0 0 12px rgba(0, 78, 100, 0.15),
         inset 0 1px 0 rgba(0, 78, 100, 0.05);
-    -webkit- transform: translate(-50%, -50%);
-    /* ensure center aligns to ring border */
+    /* Centering via GSAP xPercent/yPercent — no CSS transform needed */
 }
 
 /* Base positions (7 planets, spaced ~51.4deg apart, radius 50%, offset 50%) */
@@ -1243,8 +1445,7 @@ body.cursor-hover .cursor-dot {
     box-shadow: 0 0 24px rgba(0, 78, 100, 0.55),
         0 0 48px rgba(0, 78, 100, 0.2),
         inset 0 1px 0 rgba(0, 78, 100, 0.2);
-    transform: translate(-50%, -50%) scale(1.1);
-    /* Magnetic scale */
+    /* Scale is handled by GSAP on mouseenter — no CSS transform here */
 }
 
 /* Projects planets ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â indigo theme (4 planets, spaced 90deg apart) */
@@ -1255,8 +1456,7 @@ body.cursor-hover .cursor-dot {
     border: 1px solid rgba(0, 100, 130, 0.4);
     box-shadow: 0 0 12px rgba(0, 100, 130, 0.15),
         inset 0 1px 0 rgba(0, 78, 100, 0.05);
-    -webkit- transform: translate(-50%, -50%);
-    /* ensure center aligns to ring border */
+    /* Centering via GSAP xPercent/yPercent — no CSS transform needed */
 }
 
 /* Base positions (6 planets, offset 30deg to overlap neatly) */
@@ -1296,8 +1496,7 @@ body.cursor-hover .cursor-dot {
     box-shadow: 0 0 24px rgba(0, 100, 130, 0.55),
         0 0 48px rgba(0, 100, 130, 0.2),
         inset 0 1px 0 rgba(0, 100, 130, 0.2);
-    transform: translate(-50%, -50%) scale(1.1);
-    /* Magnetic scale */
+    /* Scale is handled by GSAP on mouseenter — no CSS transform here */
 }
 
 /* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Planet icon ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */

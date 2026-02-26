@@ -24,8 +24,51 @@
     gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
     gsap.defaults({ ease: 'power3.out', duration: 0.9 });
 
-    // No smooth-scroll library — native OS scroll for zero-lag response
-    const lenis = null;
+    // ── LENIS SMOOTH SCROLL ──────────────────────────────────────────────────
+    // Lenis intercepts wheel/touch events and replaces native scroll with a
+    // physics-based momentum curve. It operates on window.scrollY natively,
+    // so NO scrollerProxy is needed — that was causing conflict & stutter.
+    //
+    // Correct Lenis + GSAP pattern:
+    //   1. gsap.ticker drives lenis.raf() every frame at 60fps
+    //   2. lenis.on('scroll') tells ScrollTrigger to re-read scroll position
+    //   That's it. No scrollerProxy. No requestAnimationFrame loop.
+    // ────────────────────────────────────────────────────────────────────────
+    let lenis = null;
+    const initLenis = () => {
+        if (typeof Lenis === 'undefined') {
+            console.warn('Lenis not loaded — falling back to native scroll.');
+            return;
+        }
+
+        lenis = new Lenis({
+            // ── FEEL ──────────────────────────────────────────────────────
+            duration: 1.4,           // longer = more liquid float (try 1.2–1.6)
+            easing: t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t), // pure expo ease-out
+            // ── WHEEL ─────────────────────────────────────────────────────
+            smoothWheel: true,       // smooth mouse wheel & trackpad
+            wheelMultiplier: 0.9,    // slight damping — less = more fluid glide
+            // ── TOUCH ─────────────────────────────────────────────────────
+            smoothTouch: false,      // keep native momentum on mobile (iOS rubber band)
+            touchMultiplier: 1.5,
+            // ── MISC ──────────────────────────────────────────────────────
+            infinite: false,
+            syncTouch: false,        // don't intercept touch — let iOS handle it natively
+        });
+
+        // ① Drive Lenis via GSAP ticker — runs on every composited frame:
+        gsap.ticker.add(time => lenis.raf(time * 1000));
+
+        // ② Kill GSAP's lag smoother — Lenis already handles frame-timing:
+        gsap.ticker.lagSmoothing(0);
+
+        // ③ Notify ScrollTrigger of the new scroll position on each Lenis tick:
+        lenis.on('scroll', ScrollTrigger.update);
+
+        // ④ Force ScrollTrigger to recalculate on resize (Lenis can shift layout):
+        ScrollTrigger.addEventListener('refreshInit', () => lenis.resize());
+    };
+    initLenis();
 
     // ══════════════════════════════════
     // THEME SWITCHER
@@ -54,43 +97,59 @@
     initTheme();
 
     // ══════════════════════════════════
-    // PRELOADER
+    // PRELOADER — cinematic curtain exit
     // ══════════════════════════════════
     const initPreloader = () => {
         const loader = $('#preloader');
         const fill = $('.preloader-fill');
+        const counter = $('.preloader-counter');
         if (!loader) return;
 
         document.body.style.overflow = 'hidden';
 
-        requestAnimationFrame(() => { fill.style.width = '100%'; });
-
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                gsap.to(loader, {
-                    opacity: 0, duration: 0.7, ease: 'power2.inOut',
-                    onComplete: () => {
-                        loader.remove();
-                        document.body.style.overflow = '';
-                        initHeroAnimations();
-                    }
-                });
-            }, 1400);
-        });
-
-        // Fallback
-        setTimeout(() => {
+        // Curtain exit: fade content out, then slide panel up
+        const exitPreloader = () => {
             if (!loader.parentNode) return;
-            gsap.to(loader, {
-                opacity: 0, duration: 0.5,
+            gsap.timeline({
                 onComplete: () => {
                     loader.remove();
                     document.body.style.overflow = '';
                     initHeroAnimations();
                 }
-            });
-        }, 3200);
+            })
+                .to('.preloader-inner', {
+                    opacity: 0, y: -24,
+                    duration: 0.4, ease: 'power2.in'
+                })
+                .to(loader, {
+                    yPercent: -101,
+                    duration: 0.9, ease: 'power4.inOut'
+                }, '+=0.05');
+        };
+
+        // Tick counter 000 → 100 over 1.4s as bar fills
+        const startCounterTick = () => {
+            const startTime = Date.now();
+            const DURATION = 1400;
+            const tick = () => {
+                const elapsed = Date.now() - startTime;
+                const val = Math.min(100, Math.floor((elapsed / DURATION) * 100));
+                if (counter) counter.textContent = String(val).padStart(3, '0');
+                if (val < 100) requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        };
+
+        window.addEventListener('load', () => {
+            requestAnimationFrame(() => { fill.style.width = '100%'; });
+            startCounterTick();
+            setTimeout(exitPreloader, 1650);
+        });
+
+        // Fallback if window.load is very slow
+        setTimeout(() => { exitPreloader(); }, 3400);
     };
+    initPreloader();
 
     // ══════════════════════════════════
     // UNICORN STUDIO WEBGL BACKGROUND
@@ -319,74 +378,103 @@
         setTimeout(type, 2800);
     };
 
-    // ══════════════════════════════════
-    // HERO ANIMATIONS (plays after preloader — runs ONCE)
-    // KEY FIX: removed all scrub/parallax ScrollTriggers from hero.
-    //          Those were the main source of scroll lag.
-    // ══════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    // HERO ANIMATIONS — cinematic reveal after curtain exits
+    // Runs ONCE. Three layers enter simultaneously:
+    //   • Nav     — drops down from top
+    //   • Content — staggers up from bottom-left
+    //   • Visual  — sweeps in from right with scale+rotate
+    // ══════════════════════════════════════════════════════
     const initHeroAnimations = () => {
         if (prefersReducedMotion) {
             gsap.set([
+                '#nav',
                 '.gsap-hero-eyebrow', '.gsap-hero-line', '.gsap-hero-role',
                 '.gsap-hero-desc', '.gsap-hero-actions', '.gsap-hero-stats',
                 '.gsap-hero-visual', '.gsap-scroll-hint'
-            ], { opacity: 1, y: 0, x: 0, scale: 1 });
+            ], { opacity: 1, y: 0, x: 0, scale: 1, rotate: 0 });
+            $('#nav')?.classList.add('visible');
             initRoleCycle();
             return;
         }
 
-        const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        const tl = gsap.timeline({ defaults: { ease: 'power4.out' } });
 
-        tl.fromTo('.gsap-hero-eyebrow',
-            { opacity: 0, y: 18 },
-            { opacity: 1, y: 0, duration: 0.65 })
+        // ── Layer 0: Nav drops in from top ──────────────────
+        tl.to('#nav', {
+            y: 0, opacity: 1, duration: 0.7, ease: 'power3.out',
+            onStart: () => $('#nav')?.classList.add('visible')
+        }, 0)
+
+            // ── Layer 1: Content (left column) ──────────────────
+            .fromTo('.gsap-hero-eyebrow',
+                { opacity: 0, y: 32, filter: 'blur(4px)' },
+                { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.7, ease: 'power3.out' },
+                0.05)
+
             .fromTo('.gsap-hero-line',
-                { yPercent: 110, opacity: 0 },
-                { yPercent: 0, opacity: 1, duration: 0.85, stagger: 0.11, ease: 'power4.out' },
-                '-=0.3')
+                { yPercent: 115, opacity: 0 },
+                { yPercent: 0, opacity: 1, duration: 0.9, stagger: 0.08, ease: 'power4.out' },
+                0.18)
+
             .fromTo('.gsap-hero-role',
-                { opacity: 0, y: 14 },
-                { opacity: 1, y: 0, duration: 0.65 },
-                '-=0.45')
+                { opacity: 0, y: 16 },
+                { opacity: 1, y: 0, duration: 0.6 },
+                '-=0.5')
+
             .fromTo('.gsap-hero-desc',
-                { opacity: 0, y: 12 },
-                { opacity: 1, y: 0, duration: 0.65 },
+                { opacity: 0, y: 14 },
+                { opacity: 1, y: 0, duration: 0.6 },
                 '-=0.45')
+
             .fromTo('.gsap-hero-actions',
-                { opacity: 0, y: 12 },
-                { opacity: 1, y: 0, duration: 0.55 },
-                '-=0.35')
+                { opacity: 0, y: 12, scale: 0.97 },
+                { opacity: 1, y: 0, scale: 1, duration: 0.55 },
+                '-=0.38')
+
             .fromTo('.gsap-hero-stats',
                 { opacity: 0, y: 10 },
-                { opacity: 1, y: 0, duration: 0.55 },
-                '-=0.35')
-            .fromTo('.gsap-hero-visual',
-                { opacity: 0, scale: 0.88, rotate: -8 },
-                { opacity: 1, scale: 1, rotate: 0, duration: 0.95, ease: 'power3.out' },
-                0.2)
-            .fromTo('.gsap-scroll-hint',
-                { opacity: 0, y: 8 },
                 { opacity: 1, y: 0, duration: 0.5 },
-                '-=0.3');
+                '-=0.35')
 
-        // Orbit icons fade in (CSS handles the rotation)
-        gsap.fromTo('.orbit-item',
-            { opacity: 0, scale: 0 },
-            { opacity: 1, scale: 1, duration: 0.55, stagger: 0.1, ease: 'back.out(1.4)', delay: 1 }
-        );
+            .fromTo('.gsap-scroll-hint',
+                { opacity: 0, y: 10 },
+                { opacity: 1, y: 0, duration: 0.5 },
+                '-=0.25')
 
-        // Hero orb: single lightweight floating tween (CSS-composited transform)
-        gsap.to('.hero-visual', {
-            y: '-=16', duration: 3.2,
-            ease: 'sine.inOut', yoyo: true, repeat: -1, delay: 1.8
-        });
+            // ── Layer 2: Visual orb (right column, simultaneous) ─
+            .fromTo('.gsap-hero-visual',
+                { opacity: 0, scale: 0.82, rotate: -12, x: 40 },
+                {
+                    opacity: 1, scale: 1, rotate: 0, x: 0,
+                    duration: 1.1, ease: 'power3.out'
+                },
+                0.1)
 
-        // ── REMOVED: scrub parallax on .shape-1, .shape-2, .shape-3
-        // ── REMOVED: hero-content fade-to-0.5 opacity on scroll
-        // These were the core cause of scroll lag.
+            // ── Orbit icons pop in with spring ──────────────────
+            .fromTo('.orbit-planet',
+                { opacity: 0, scale: 0 },
+                {
+                    opacity: 1, scale: 1, duration: 0.5,
+                    stagger: { amount: 0.9, from: 'random' },
+                    ease: 'back.out(1.8)'
+                },
+                0.7);
+
+        // ── Letter wave: split name into spans after entrance ───
+        const heroLine = document.querySelector('.gsap-hero-line');
+        if (heroLine) {
+            const text = heroLine.textContent;
+            heroLine.innerHTML = text.split('').map((char, i) => {
+                const isSpace = char === ' ';
+                const delay = isSpace ? 0 : (i * 0.07);
+                return `<span class="name-letter${isSpace ? ' space' : ''}" style="animation-delay:${delay}s">${isSpace ? '&nbsp;' : char}</span>`;
+            }).join('');
+        }
 
         initRoleCycle();
     };
+
 
     // ══════════════════════════════════
     // SCROLL ANIMATIONS (ScrollTrigger)
@@ -621,9 +709,19 @@
     const initOrbitAnimation = () => {
         if (prefersReducedMotion || isMobile()) return;
 
-        // 1. Setup the forward rotation for the rings
         const skillRing = $('.ring-skills');
         const projRing = $('.ring-projects');
+        const skillPlanets = $$('.ring-skills .orbit-planet');
+        const projPlanets = $$('.ring-projects .orbit-planet');
+        const allPlanets = [...skillPlanets, ...projPlanets];
+
+        // KEY FIX: Use xPercent/yPercent for centering — GSAP tracks these
+        // independently from 'rotation', so they don't override each other.
+        // Previously the CSS transform:translate(-50%,-50%) was being
+        // stomped by GSAP's rotation, causing planets to lose center & overlap.
+        gsap.set(allPlanets, { xPercent: -50, yPercent: -50 });
+
+        // 1. Forward rotation for the rings
 
         const skillsTween = gsap.to(skillRing, {
             rotation: 360,
@@ -639,9 +737,7 @@
             ease: 'linear'
         });
 
-        // 2. Setup the counter-rotation for the planets so they stay upright
-        const skillPlanets = $$('.ring-skills .orbit-planet');
-        const projPlanets = $$('.ring-projects .orbit-planet');
+        // 2. Counter-rotate planets to keep icons upright
 
         const skillsCounterTween = gsap.to(skillPlanets, {
             rotation: -360,
@@ -657,25 +753,25 @@
             ease: 'linear'
         });
 
-        // 3. Hover Interaction - Slow down the rings smoothly
-        const allPlanets = [...skillPlanets, ...projPlanets];
-
+        // 3. Hover — slow ring & scale planet via GSAP (avoids CSS transform conflict)
         allPlanets.forEach(planet => {
             planet.addEventListener('mouseenter', () => {
-                // Add magnet pull class logic to styles using GSAP timescale
                 gsap.to([skillsTween, projTween, skillsCounterTween, projCounterTween], {
-                    timeScale: 0.1,  // Slow down rotation significantly
+                    timeScale: 0.08,
                     duration: 0.8,
                     ease: 'power2.out'
                 });
+                // Scale up via GSAP (CSS transform would conflict with rotation)
+                gsap.to(planet, { scale: 1.18, duration: 0.3, ease: 'back.out(1.6)' });
             });
 
             planet.addEventListener('mouseleave', () => {
                 gsap.to([skillsTween, projTween, skillsCounterTween, projCounterTween], {
-                    timeScale: 1, // Restore full speed
+                    timeScale: 1,
                     duration: 1.2,
                     ease: 'power2.inOut'
                 });
+                gsap.to(planet, { scale: 1, duration: 0.4, ease: 'power2.out' });
             });
         });
     };
