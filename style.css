@@ -238,6 +238,11 @@
         inset 0 1.5px 1.5px rgba(255, 255, 255, 0.65),
         /* bottom refraction tint */
         inset 0 -1px 1px rgba(0, 78, 100, 0.08) !important;
+    /* GPU-promote each card onto its own compositor layer BEFORE backdrop-filter
+       so the blur runs on the GPU thread and doesn’t block the main thread */
+    transform: translateZ(0);
+    will-change: transform;
+    isolation: isolate;
 }
 
 .skill-card:hover,
@@ -285,8 +290,6 @@ html {
     text-size-adjust: 100%;
     min-height: 100%;
     width: 100%;
-    /* Prevent rubber-band bounce that causes scroll jitter */
-    overscroll-behavior: none;
 }
 
 body {
@@ -309,6 +312,8 @@ body {
     padding-left: max(0px, var(--safe-left));
     padding-right: max(0px, var(--safe-right));
     padding-bottom: max(0px, var(--safe-bottom));
+    /* Allow vertical panning — critical for native scroll on mobile */
+    touch-action: pan-y;
 }
 
 body * {
@@ -489,42 +494,8 @@ body.cursor-hover .cursor-dot {
     overflow: hidden;
 }
 
-/* Decorative edge lines */
-#preloader::before,
-#preloader::after {
-    content: '';
-    position: absolute;
-    background: var(--gold);
-    opacity: 0.25;
-}
 
-#preloader::before {
-    width: 1px;
-    height: 0;
-    top: 0;
-    left: clamp(2rem, 6vw, 5rem);
-    animation: plLine 1.2s var(--ease-expo) 0.2s forwards;
-}
 
-#preloader::after {
-    width: 0;
-    height: 1px;
-    bottom: clamp(2rem, 6vw, 4rem);
-    right: 0;
-    animation: plLineH 1s var(--ease-expo) 0.6s forwards;
-}
-
-@keyframes plLine {
-    to {
-        height: 55vh;
-    }
-}
-
-@keyframes plLineH {
-    to {
-        width: 45vw;
-    }
-}
 
 .preloader-inner {
     text-align: center;
@@ -2338,7 +2309,12 @@ body.cursor-hover .cursor-dot {
         flex-direction: column;
         justify-content: center;
         text-align: center;
-        gap: clamp(1.5rem, 4vw, 3rem);
+        gap: clamp(1rem, 3vw, 2rem);
+        /* Override full-screen height — orb is hidden, so 100dvh leaves a huge blank gap */
+        min-height: auto;
+        /* Just enough padding to clear the nav + a modest top/bottom breathing room */
+        padding-top: calc(var(--nav-h) + clamp(1.5rem, 3vh, 2.5rem));
+        padding-bottom: clamp(1.5rem, 3vh, 2.5rem);
     }
 
     .hero-visual {
@@ -2485,6 +2461,57 @@ body.cursor-hover .cursor-dot {
         width: clamp(30px, 8vw, 40px);
         height: clamp(30px, 8vw, 40px);
         font-size: clamp(0.85rem, 2.5vw, 1.1rem);
+    }
+}
+
+/* ════════════════════════════════════════════════
+   MOBILE SCROLL PERFORMANCE
+   Applied to all touch/coarse-pointer devices.
+   backdrop-filter:blur(32px) on many elements is
+   the #1 cause of scroll stutter — halves repaint
+   cost with a still-visible glass effect.
+   ════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+
+    /* Lightweight blur — still looks glassy, 16× cheaper to composite */
+    .skill-card,
+    .info-card,
+    .project-card,
+    .contact-form-wrap,
+    .contact-link,
+    .trait {
+        backdrop-filter: blur(8px) saturate(140%) !important;
+        -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+        /* Disable hover transitions — they fire on touch and cause repaints */
+        transition: none !important;
+    }
+
+    .nav-links {
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+
+    #nav.scrolled {
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+
+    /* Remove mix-blend-mode on canvas — extremely costly on mobile GPU */
+    #bgCanvas {
+        mix-blend-mode: normal !important;
+        display: none !important;
+        /* hidden by JS too, belt-and-suspenders */
+    }
+
+    /* Let native scroll engine handle vertical momentum unimpeded */
+    html,
+    body {
+        overscroll-behavior-y: auto;
+    }
+
+    /* Sections: contain layout to prevent full-page reflow on any resize */
+    section {
+        contain: layout style;
     }
 }
 

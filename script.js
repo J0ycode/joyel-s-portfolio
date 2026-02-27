@@ -36,6 +36,14 @@
     // ────────────────────────────────────────────────────────────────────────
     let lenis = null;
     const initLenis = () => {
+        // ── On touch/mobile: skip Lenis entirely — native scroll is faster
+        // Lenis GSAP ticker fires every animation frame even with smoothTouch:false,
+        // which burns CPU during touch scrolling and causes stutter.
+        if (isMobile() || window.matchMedia('(pointer: coarse)').matches) {
+            console.log('Mobile detected — using native scroll (no Lenis).');
+            return;
+        }
+
         if (typeof Lenis === 'undefined') {
             console.warn('Lenis not loaded — falling back to native scroll.');
             return;
@@ -49,11 +57,11 @@
             smoothWheel: true,       // smooth mouse wheel & trackpad
             wheelMultiplier: 0.9,    // slight damping — less = more fluid glide
             // ── TOUCH ─────────────────────────────────────────────────────
-            smoothTouch: false,      // keep native momentum on mobile (iOS rubber band)
+            smoothTouch: false,      // desktop only — touch handled natively
             touchMultiplier: 1.5,
             // ── MISC ──────────────────────────────────────────────────────
             infinite: false,
-            syncTouch: false,        // don't intercept touch — let iOS handle it natively
+            syncTouch: false,
         });
 
         // ① Drive Lenis via GSAP ticker — runs on every composited frame:
@@ -158,6 +166,12 @@
     const initCanvas = () => {
         const bgContainer = $('#bgCanvas');
         if (!bgContainer) return;
+
+        // ── Skip WebGL entirely on mobile — mix-blend-mode + WebGL is a GPU killer
+        if (isMobile() || window.matchMedia('(pointer: coarse)').matches) {
+            bgContainer.remove();
+            return;
+        }
 
         // Guard: only call if library loaded successfully from CDN
         if (typeof UnicornStudio === 'undefined') {
@@ -462,8 +476,10 @@
                 0.7);
 
         // ── Letter wave: split name into spans after entrance ───
+        // Skip on mobile — per-letter CSS animations create hundreds of staggered
+        // repaints that block the compositor thread during scroll.
         const heroLine = document.querySelector('.gsap-hero-line');
-        if (heroLine) {
+        if (heroLine && !isMobile()) {
             const text = heroLine.textContent;
             heroLine.innerHTML = text.split('').map((char, i) => {
                 const isSpace = char === ' ';
