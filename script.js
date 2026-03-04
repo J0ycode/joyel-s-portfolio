@@ -473,7 +473,7 @@
                     stagger: { amount: 0.9, from: 'random' },
                     ease: 'back.out(1.8)'
                 },
-                0.7);
+                0.8);
 
         // ── Letter wave: split name into spans after entrance ───
         // Skip on mobile — per-letter CSS animations create hundreds of staggered
@@ -718,6 +718,169 @@
     };
 
     // ══════════════════════════════════
+    // SKILLS INTERACTIVE CANVAS
+    // Draws a tech/neural-network constellation
+    // ══════════════════════════════════
+    const initSkillsCanvas = () => {
+        if (prefersReducedMotion || isMobile()) return;
+
+        const canvas = $('#skillsCanvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const cxUI = $('#vCX');
+        const cyUI = $('#vCY');
+
+        // Node configuration
+        const NODE_COUNT = 45;
+        const CONNECTION_DIST = 120;
+        const MOUSE_RADIUS = 150;
+        let nodes = [];
+        let mouse = { x: -1000, y: -1000 };
+        let isVisible = false;
+        let reqId;
+
+        const resize = () => {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            initNodes();
+        };
+
+        const initNodes = () => {
+            nodes = [];
+            for (let i = 0; i < NODE_COUNT; i++) {
+                nodes.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.6,
+                    vy: (Math.random() - 0.5) * 0.6,
+                    radius: Math.random() * 1.5 + 0.5
+                });
+            }
+        };
+
+        const draw = () => {
+            if (!isVisible) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Get current theme gold color (could be bright gold or deep teal)
+            const isDarkGold = document.documentElement.getAttribute('data-theme') === 'gold';
+            const accentRGB = isDarkGold ? '212, 175, 55' : '0, 78, 100';
+
+            // Update & draw nodes
+            for (let i = 0; i < nodes.length; i++) {
+                let n = nodes[i];
+
+                n.x += n.vx;
+                n.y += n.vy;
+
+                // Bounce off edges
+                if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
+                if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
+
+                // Mouse interaction - push away slightly
+                const dx = mouse.x - n.x;
+                const dy = mouse.y - n.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < MOUSE_RADIUS) {
+                    const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+                    n.x -= (dx / dist) * force * 1.5;
+                    n.y -= (dy / dist) * force * 1.5;
+                }
+
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${accentRGB}, 0.8)`;
+                ctx.fill();
+
+                // Draw connections
+                for (let j = i + 1; j < nodes.length; j++) {
+                    let n2 = nodes[j];
+                    const cdx = n.x - n2.x;
+                    const cdy = n.y - n2.y;
+                    const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
+
+                    if (cDist < CONNECTION_DIST) {
+                        ctx.beginPath();
+                        ctx.moveTo(n.x, n.y);
+                        ctx.lineTo(n2.x, n2.y);
+                        const opacity = 1 - (cDist / CONNECTION_DIST);
+                        ctx.strokeStyle = `rgba(${accentRGB}, ${opacity * 0.25})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw mouse connection web
+            for (let i = 0; i < nodes.length; i++) {
+                let n = nodes[i];
+                const mdx = mouse.x - n.x;
+                const mdy = mouse.y - n.y;
+                const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+
+                if (mDist < MOUSE_RADIUS) {
+                    ctx.beginPath();
+                    ctx.moveTo(n.x, n.y);
+                    ctx.lineTo(mouse.x, mouse.y);
+                    const opacity = 1 - (mDist / MOUSE_RADIUS);
+                    ctx.strokeStyle = `rgba(${accentRGB}, ${opacity * 0.5})`;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+
+            reqId = requestAnimationFrame(draw);
+        };
+
+        // Event Listeners
+        window.addEventListener('resize', resize, { passive: true });
+
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+
+            // Update UI coordinates
+            if (cxUI) cxUI.textContent = Math.round(mouse.x).toString().padStart(3, '0');
+            if (cyUI) cyUI.textContent = Math.round(mouse.y).toString().padStart(3, '0');
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouse.x = -1000;
+            mouse.y = -1000;
+            if (cxUI) cxUI.textContent = '000';
+            if (cyUI) cyUI.textContent = '000';
+        });
+
+        // Intersection Observer to pause rendering when offscreen
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                if (!isVisible) {
+                    isVisible = true;
+                    resize();
+                    draw();
+                    gsap.fromTo('.gsap-skill-visual',
+                        { opacity: 0, x: 50 },
+                        { opacity: 1, x: 0, duration: 0.9, ease: 'power3.out' }
+                    );
+                }
+            } else {
+                isVisible = false;
+                cancelAnimationFrame(reqId);
+            }
+        }, { threshold: 0.1 });
+
+        observer.observe(canvas.parentElement);
+
+        // Initial setup
+        resize();
+    };
+
+    // ══════════════════════════════════
     // ORBIT ANIMATION (Premium Interactive Orbit System)
     // Continuous smooth GSAP rotation. Slows down on planet hover.
     // Includes counter-rotation to keep icons upright.
@@ -737,20 +900,22 @@
         // stomped by GSAP's rotation, causing planets to lose center & overlap.
         gsap.set(allPlanets, { xPercent: -50, yPercent: -50 });
 
-        // 1. Forward rotation for the rings
+        // 1. Create the continuous rotation tweens (initially paused)
 
         const skillsTween = gsap.to(skillRing, {
             rotation: 360,
             duration: 40,
             repeat: -1,
-            ease: 'linear'
+            ease: 'none',
+            timeScale: 0
         });
 
         const projTween = gsap.to(projRing, {
             rotation: -360,
             duration: 60,
             repeat: -1,
-            ease: 'linear'
+            ease: 'none',
+            timeScale: 0
         });
 
         // 2. Counter-rotate planets to keep icons upright
@@ -759,14 +924,24 @@
             rotation: -360,
             duration: 40,
             repeat: -1,
-            ease: 'linear'
+            ease: 'none',
+            timeScale: 0
         });
 
         const projCounterTween = gsap.to(projPlanets, {
             rotation: 360,
             duration: 60,
             repeat: -1,
-            ease: 'linear'
+            ease: 'none',
+            timeScale: 0
+        });
+
+        // 3. Smoothly accelerate the orbits into motion exactly as the gravity-drop finishes
+        gsap.to([skillsTween, projTween, skillsCounterTween, projCounterTween], {
+            timeScale: 1,
+            duration: 2.5,
+            ease: 'power2.inOut',
+            delay: 1.2
         });
 
         // 3. Hover — slow ring & scale planet via GSAP (avoids CSS transform conflict)
@@ -829,6 +1004,7 @@
         initCardTilt();
         initProjectGlow();
         initContactForm();
+        initSkillsCanvas();
         initOrbitAnimation();   // no-op now; CSS handles it
         initShapesParallax();
         // initNavParallax();   // removed — was expensive scroll listener
