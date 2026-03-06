@@ -666,6 +666,28 @@
     };
 
     // ══════════════════════════════════
+    // ADVANCED LAZY LOADING
+    // ══════════════════════════════════
+    const initLazyLoading = () => {
+        const images = $$('img[data-src]');
+        if (!images.length) return;
+
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.getAttribute('data-src');
+                    img.removeAttribute('data-src');
+                    img.classList.add('loaded');
+                    obs.unobserve(img);
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px 200px 0px' });
+
+        images.forEach(img => observer.observe(img));
+    };
+
+    // ══════════════════════════════════
     // CONTACT FORM
     // ══════════════════════════════════
     const initContactForm = () => {
@@ -1004,6 +1026,7 @@
         initCardTilt();
         initProjectGlow();
         initContactForm();
+        initLazyLoading();
         initSkillsCanvas();
         initOrbitAnimation();   // no-op now; CSS handles it
         initShapesParallax();
