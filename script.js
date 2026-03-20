@@ -64,20 +64,31 @@
   ══════════════════════════════════ */
   let lenis = null;
   const initLenis = () => {
-    if (isMobile() || window.matchMedia('(pointer:coarse)').matches) return;
     if (typeof Lenis === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
     lenis = new Lenis({
-      duration: 1.4,
-      easing: t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -11 * t)), // even smoother easing
       smoothWheel: true,
-      wheelMultiplier: 1.1,
-      lerp: 0.1,
-      smoothTouch: false,
+      wheelMultiplier: 1,
+      smoothTouch: false, // native touch for smoothness
+      infinite: false,
     });
-    gsap.ticker.add(time => lenis.raf(time * 1000));
+
+    // GSAP Ticker for better performance
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
     gsap.ticker.lagSmoothing(0);
+
+    // Update ScrollTrigger on Lenis scroll event
     lenis.on('scroll', ScrollTrigger.update);
-    ScrollTrigger.addEventListener('refreshInit', () => lenis.resize());
+
+    // Re-calculate heights/offsets on resize
+    window.addEventListener('resize', () => {
+      lenis.resize();
+    }, { passive: true });
   };
   try {
     initLenis();
@@ -645,14 +656,7 @@
         scrollTrigger: { trigger: '#footer', start: 'top 98%', toggleActions: 'play none none none' } }
     );
 
-    /* Section parallax — subtle background depth layer */
-    $$('.section').forEach(sec => {
-      gsap.fromTo(sec.querySelector('.section-inner') || sec,
-        { y: 0 },
-        { y: -20, ease: 'none',
-          scrollTrigger: { trigger: sec, start: 'top bottom', end: 'bottom top', scrub: 1.5 } }
-      );
-    });
+
   };
 
   /* ══════════════════════════════════

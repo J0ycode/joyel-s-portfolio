@@ -50,7 +50,7 @@
   /* Layout */
   --gutter: clamp(1.25rem, 4vw, 4rem);
   --nav-h: clamp(56px, 7vh, 72px);
-  --section-pad: clamp(4rem, 8vh, 7.5rem);
+  --section-pad: clamp(3rem, 5vh, 4.5rem);
   --container: 1440px;
   --content-w: 88%;
 
@@ -441,11 +441,15 @@ body.cursor-hover .cursor-dot {
   transform: translateY(-7px) rotate(-45deg);
 }
 
-/* ── UIVERSE THEME SWITCH ── */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .theme-switch-container {
   display: flex;
   align-items: center;
-  margin: 0 0.8rem;
   flex-shrink: 0;
 }
 
@@ -788,10 +792,10 @@ body.cursor-hover .cursor-dot {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(2rem, 5vw, 6rem);
-  padding-top: calc(var(--nav-h) + clamp(2rem, 5vh, 5rem));
-  padding-bottom: clamp(2rem, 5vh, 5rem);
+  justify-content: center;
+  /* Use symmetrical vertical padding for true center alignment */
+  padding-top: var(--nav-h);
+  padding-bottom: 0;
   overflow: visible;
 }
 
@@ -849,6 +853,10 @@ body.cursor-hover .cursor-dot {
   max-width: clamp(280px, 62%, 860px);
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .hero-eyebrow {
@@ -892,14 +900,13 @@ body.cursor-hover .cursor-dot {
    Putting them on different elements (parent+child) breaks gradient visibility.
    ────────────────────────────────────────────────────────────────────────── */
 .hero-headline {
-  font-size: clamp(2.8rem, 6.5vw + 0.5rem, 5.8rem);
+  font-size: clamp(2.8rem, 6.5vw, 6.5rem);
   font-weight: 900;
   line-height: 1.0;
   letter-spacing: -0.045em;
   color: #ffffff;
-  /* fallback if gradient fails */
   margin-bottom: 0.75rem;
-  white-space: nowrap;
+  white-space: normal;
   position: relative;
 }
 
@@ -991,7 +998,7 @@ body.cursor-hover .cursor-dot {
 /* Tagline */
 .hero-tagline {
   display: table;
-  margin: 0 0 clamp(1.2rem, 2.5vh, 1.8rem) 0;
+  margin: 0 auto clamp(1.2rem, 2.5vh, 1.8rem);
   opacity: 0;
   padding: 0.45rem 1.1rem;
   background: rgba(0, 212, 255, 0.06);
@@ -1046,13 +1053,14 @@ body.cursor-hover .cursor-dot {
   font-size: clamp(1rem, 1.2vw, 1.1rem);
   line-height: 1.8;
   color: var(--text-dim);
-  margin-bottom: 2.5rem;
-  max-width: 58ch;
+  margin: 0 auto 2.5rem;
+  max-width: 65ch;
 }
 
 .hero-actions {
   display: flex;
-  gap: 1rem;
+  justify-content: center;
+  gap: 1.5rem;
   flex-wrap: wrap;
   margin-bottom: 3rem;
 }
@@ -1060,7 +1068,8 @@ body.cursor-hover .cursor-dot {
 .hero-stats {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  justify-content: center;
+  gap: 2.5rem;
   flex-wrap: wrap;
 }
 
@@ -1926,9 +1935,19 @@ body.cursor-hover .cursor-dot {
 
 /* ── RESPONSIVE ── */
 @media (max-width:1024px) {
+  .hero-section {
+    min-height: 100dvh;
+    min-height: 100vh;
+    justify-content: center;
+    padding-top: calc(var(--nav-h) + clamp(1rem, 3vh, 2rem));
+    padding-bottom: clamp(1rem, 3vh, 2rem);
+  }
+
   .hero-section .section-inner {
     flex-direction: column;
     text-align: center;
+    gap: 0;
+    justify-content: center;
   }
 
   .hero-content {
@@ -1937,6 +1956,23 @@ body.cursor-hover .cursor-dot {
 
   .hero-headline {
     white-space: normal;
+  }
+
+  /* JS liquid gradient is skipped on mobile/tablet — use static CSS gradient fallback */
+  .gsap-hero-line {
+    background: linear-gradient(135deg, #ffffff 0%, #7dd3fc 50%, #e0f2fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  [data-theme="gold"] .gsap-hero-line {
+    background: linear-gradient(135deg, #ffffff 0%, #d4af37 50%, #f0cc60 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
 
   .hero-actions {
@@ -1953,9 +1989,7 @@ body.cursor-hover .cursor-dot {
   }
 
   .hero-visual {
-    width: min(320px, 80vw);
-    height: min(320px, 80vw);
-    margin-top: 2rem;
+    display: none;
   }
 
   .about-grid {
@@ -1974,20 +2008,18 @@ body.cursor-hover .cursor-dot {
   .projects-grid {
     grid-template-columns: 1fr 1fr;
   }
-}
 
-@media (max-width:768px) {
   .nav-links {
     display: none;
-  }
-
-  .hide-mobile {
-    display: none !important;
   }
 
   .nav-burger {
     display: flex;
   }
+}
+
+@media (max-width:768px) {
+
 
   .drawer-footer {
     position: absolute;
@@ -2012,43 +2044,7 @@ body.cursor-hover .cursor-dot {
     margin: 0;
   }
 
-  .hero-visual .orbit-ring {
-    display: none;
-  }
 
-  .hero-visual .avatar-ring {
-    display: none;
-  }
-
-  .orbit-mobile-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    justify-content: center;
-    margin-top: 1.5rem;
-  }
-
-  .omc-card {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.8rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-full);
-    font-size: 0.78rem;
-    color: var(--text-muted);
-  }
-
-  .omc-card.proj {
-    border-color: var(--border-hi);
-    color: var(--gold);
-    background: var(--gold-dim);
-  }
-
-  .omc-card i {
-    font-size: 0.9rem;
-  }
 
   .projects-grid {
     grid-template-columns: 1fr;
